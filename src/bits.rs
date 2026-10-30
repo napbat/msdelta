@@ -95,6 +95,19 @@ impl<'a> BitReader<'a> {
         Ok(value)
     }
 
+    /// Read `n` bits, with `n <= 64`, as one value. The first bit is bit 0 of the value.
+    pub(crate) fn bits64(&mut self, n: u32) -> Result<u64> {
+        debug_assert!(n <= 64);
+        let low = self.bits(n.min(32))?;
+        let high = self.bits(n.saturating_sub(32))?;
+        Ok(u64::from(low) | (u64::from(high) << 32))
+    }
+
+    /// Read a 32-bit value that the stream stores as 32 plain bits.
+    pub(crate) fn dword(&mut self) -> Result<u32> {
+        self.bits(32)
+    }
+
     /// Read one bit as a `bool`.
     #[inline]
     pub(crate) fn bit(&mut self) -> Result<bool> {

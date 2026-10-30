@@ -65,7 +65,7 @@ pub struct Error {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    /// The delta does not start with `PA30`.
+    /// The delta does not start with `PA30` or `PA31`.
     InvalidSignature([u8; 4]),
     /// A bitstream ended before the decoder read all data.
     UnexpectedEnd,
@@ -82,6 +82,11 @@ pub enum ErrorKind {
     },
     /// The target hash in the delta is not equal to the hash of the output.
     HashMismatch {
+        /// The `ALG_ID` of the hash.
+        algorithm: u32,
+    },
+    /// The source hash of a PA31 delta is not equal to the hash of the source.
+    SourceHashMismatch {
         /// The `ALG_ID` of the hash.
         algorithm: u32,
     },
@@ -157,7 +162,10 @@ impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ErrorKind::InvalidSignature(sig) => {
-                write!(f, "Invalid signature {sig:02x?} (expected 'PA30')")
+                write!(
+                    f,
+                    "Invalid signature {sig:02x?} (expected 'PA30' or 'PA31')"
+                )
             }
             ErrorKind::UnexpectedEnd => write!(f, "Unexpected end of bitstream"),
             ErrorKind::InvalidData(msg) => write!(f, "Invalid delta: {msg}"),
@@ -170,6 +178,9 @@ impl fmt::Display for ErrorKind {
             }
             ErrorKind::HashMismatch { algorithm } => {
                 write!(f, "Target hash mismatch (ALG_ID {algorithm:#x})")
+            }
+            ErrorKind::SourceHashMismatch { algorithm } => {
+                write!(f, "Source hash mismatch (ALG_ID {algorithm:#x})")
             }
         }
     }

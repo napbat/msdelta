@@ -6,25 +6,29 @@ name = "msdelta"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
-description = "A no_std-friendly, cross-platform decoder for Windows MSDELTA (PA30) patches"
+description = "A no_std-friendly, cross-platform decoder for Windows MSDELTA (PA30 and PA31) patches"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/napbat/msdelta"
 readme = "README.md"
-keywords = ["msdelta", "pa30", "delta", "patch", "windows"]
+keywords = ["msdelta", "pa30", "pa31", "delta", "patch"]
 categories = ["compression", "parsing"]
 exclude = ["scripts/"]
 
 [features]
-default = ["std"]
+default = ["std", "lzms"]
 std = []
+# Decompress the LZMS patch buffer of a bsdiff delta (flag 0x2000000).
+lzms = ["dep:lzms"]
 
 [dependencies]
 md-5 = { version = "0.10", default-features = false }
+lzms = { git = "https://github.com/napbat/lzms", branch = "main", default-features = false, optional = true }
+portex = { git = "https://github.com/napbat/portex", branch = "main", default-features = false }
 sha1 = { version = "0.10", default-features = false }
+sha2 = { version = "0.10", default-features = false }
 
 [dev-dependencies]
 serde_json = "1"
-sha2 = "0.10"
 
 [lints.rust]
 warnings = { level = "deny", priority = -2 }

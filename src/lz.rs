@@ -11,6 +11,7 @@
 use crate::bits::BitReader;
 use crate::huffman::Huffman;
 use crate::prelude::*;
+use crate::rift::{OffsetTable, RiftTable};
 use crate::{Error, Result};
 
 /// The number of symbols of the main tree.
@@ -269,31 +270,38 @@ fn copy_window(source: &[u8], out: &mut Vec<u8>, start: usize, length: usize) {
 
 /// Decode the target from a patch buffer.
 ///
-/// The decoder supports the patch buffers of raw data: an empty base rift table, and an
-/// identity mapping from target positions to source positions.
-pub(crate) fn decode(patch: &[u8], source: &[u8], target_size: usize) -> Result<Vec<u8>> {
+/// The patch buffer starts with the base rift table. The decoder adds `rift`, the rift table of
+/// the preprocessing, and uses the sum to find the source data of each source match. The
+/// positions of both tables are window positions: the source is at the start of the window,
+/// and the target follows it.
+pub(crate) fn decode(
+    patch: &[u8],
+    source: &[u8],
+    target_size: usize,
+    rift: &RiftTable,
+) -> Result<Vec<u8>> {
     let mut out = Vec::with_capacity(target_size.min(patch.len().saturating_mul(64)));
     if target_size == 0 && patch.is_empty() {
         return Ok(out);
     }
     let mut reader = BitReader::new(patch)?;
-    if reader.bit()? {
-        return Err(Error::unsupported("a non-empty base rift table"));
-    }
+    let base = RiftTable::read(&mut reader).map_err(|e| e.in_structure("base rift table"))?;
+    let offsets = OffsetTable::new(&RiftTable::sum(&base, rift))?;
     let blocks = read_blocks(&mut reader)?;
 
+    let mut window = Window {
+        source,
+        out: &mut out,
+        target_size,
+    };
     let mut next_block = 0;
     let mut trees: Option<Trees> = None;
     let mut repeats = [0u64; 3];
-    let base = source.len();
+    let mut range = 0;
 
-    while out.len() < target_size {
-        let target_pos = out.len();
-        let window_pos = base
-            .checked_add(target_pos)
-            .ok_or_else(|| Error::invalid_data("the window is too large"))?;
-        let window_pos64 = window_pos as u64;
-        while let Some(block) = blocks.get(next_block).filter(|b| b.start <= window_pos64) {
+    while window.out.len() < target_size {
+        let position = window.position()?;
+        while let Some(block) = blocks.get(next_block).filter(|b| b.start <= position) {
             trees = Some(Trees::new(&block.lengths)?);
             next_block += 1;
         }
@@ -301,57 +309,97 @@ pub(crate) fn decode(patch: &[u8], source: &[u8], target_size: usize) -> Result<
             .as_ref()
             .ok_or_else(|| Error::invalid_data("no compression block covers the output"))?;
 
-        let remaining = target_size - target_pos;
-        let checked_length = |length: u64| {
-            usize::try_from(length)
-                .ok()
-                .filter(|&length| length <= remaining)
-                .ok_or_else(|| Error::invalid_data("a match is longer than the target"))
-        };
-        // A window start is before `window_pos`, so it fits in `usize`.
-        let window_start = |distance: u64| {
-            window_pos64
-                .checked_sub(distance)
-                .filter(|_| distance > 0)
-                .and_then(|start| usize::try_from(start).ok())
-                .ok_or_else(|| Error::invalid_data("a match distance is outside the window"))
-        };
-
-        match read_match(&mut reader, trees)? {
-            Match::Literal(byte) => out.push(byte),
+        let distance = match read_match(&mut reader, trees)? {
+            Match::Literal(byte) => {
+                window.out.push(byte);
+                continue;
+            }
             Match::Window { distance, length } => {
-                let length = checked_length(length)?;
-                let start = window_start(distance)?;
-                update_repeats(&mut repeats, distance);
-                copy_window(source, &mut out, start, length);
+                window.copy(distance, length)?;
+                distance
             }
             Match::Repeat { index, length } => {
-                let length = checked_length(length)?;
                 let distance = repeats[index];
-                let start = window_start(distance)?;
-                update_repeats(&mut repeats, distance);
-                copy_window(source, &mut out, start, length);
+                window.copy(distance, length)?;
+                distance
             }
             Match::Source { delta, length } => {
-                let length = checked_length(length)?;
-                let start = i64::try_from(target_pos)
-                    .ok()
-                    .and_then(|pos| pos.checked_sub(delta))
-                    .and_then(|start| usize::try_from(start).ok())
-                    .filter(|&start| start.saturating_add(length) <= source.len())
-                    .ok_or_else(|| Error::invalid_data("a source match is outside the source"))?;
-                update_repeats(&mut repeats, (window_pos - start) as u64);
-                out.extend_from_slice(&source[start..start + length]);
+                range = offsets.find(range, position);
+                let offset = source_offset(&offsets, range, position)?;
+                let distance = delta.wrapping_sub(offset).cast_unsigned();
+                window.copy(distance, length)?;
+                distance
             }
             Match::FullSource { length } => {
-                let length = checked_length(length)?;
-                let end = target_pos
-                    .checked_add(length)
-                    .filter(|&end| end <= source.len())
-                    .ok_or_else(|| Error::invalid_data("a source match is outside the source"))?;
-                out.extend_from_slice(&source[target_pos..end]);
+                range = offsets.find(range, position);
+                let distance = offsets.offset(range).wrapping_neg().cast_unsigned();
+                window.check_length(length)?;
+                let mut left = length;
+                loop {
+                    let position = window.position()?;
+                    let offset = source_offset(&offsets, range, position)?;
+                    let in_range = offsets.end(range).wrapping_sub(position);
+                    let take = left.min(in_range);
+                    window.copy(offset.wrapping_neg().cast_unsigned(), take)?;
+                    left -= take;
+                    if left == 0 {
+                        break;
+                    }
+                    range += 1;
+                }
+                distance
             }
-        }
+        };
+        update_repeats(&mut repeats, distance);
     }
     Ok(out)
+}
+
+/// Return the offset of a source match at `position` in range `range`.
+fn source_offset(offsets: &OffsetTable, range: usize, position: u64) -> Result<i64> {
+    let offset = offsets.offset(range);
+    if offset == 0 || position < offset.wrapping_neg().cast_unsigned() {
+        return Err(Error::invalid_data("a source match has no source data"));
+    }
+    Ok(offset)
+}
+
+/// The window of the decompressor: the source, followed by the output.
+struct Window<'a> {
+    source: &'a [u8],
+    out: &'a mut Vec<u8>,
+    target_size: usize,
+}
+
+impl Window<'_> {
+    /// Return the window position of the next output byte.
+    fn position(&self) -> Result<u64> {
+        self.source
+            .len()
+            .checked_add(self.out.len())
+            .map(|position| position as u64)
+            .ok_or_else(|| Error::invalid_data("the window is too large"))
+    }
+
+    /// Make sure that a match of `length` bytes ends in the target.
+    fn check_length(&self, length: u64) -> Result<usize> {
+        usize::try_from(length)
+            .ok()
+            .filter(|&length| length <= self.target_size - self.out.len())
+            .ok_or_else(|| Error::invalid_data("a match is longer than the target"))
+    }
+
+    /// Append `length` bytes from `distance` bytes behind the next output byte.
+    fn copy(&mut self, distance: u64, length: u64) -> Result<()> {
+        let length = self.check_length(length)?;
+        let position = self.position()?;
+        // A start before the position fits in `usize`.
+        let start = position
+            .checked_sub(distance)
+            .filter(|_| distance > 0)
+            .and_then(|start| usize::try_from(start).ok())
+            .ok_or_else(|| Error::invalid_data("a match distance is outside the window"))?;
+        copy_window(self.source, self.out, start, length);
+        Ok(())
+    }
 }

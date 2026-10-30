@@ -1,7 +1,9 @@
-//! Apply the deltas that `msdelta.dll` made, and compare with `GetDeltaInfoB`.
+//! Apply the deltas that `msdelta.dll` and `UpdateCompression.dll` made, and compare with
+//! `GetDeltaInfoB`.
 //!
 //! `scripts/make-fixtures.py` made the deltas in `tests/fixtures/`. The generator in this file
-//! makes the same sources and targets from the same seeds.
+//! makes the same sources and targets from the same seeds. The PE cases use the self-built
+//! images in `tests/fixtures/pe/`.
 
 use msdelta::{DeltaHeader, ErrorKind};
 use serde_json::Value;
@@ -117,6 +119,15 @@ fn case(name: &str) -> (Vec<u8>, Vec<u8>) {
         "no-hash" => (rnd(), edit(10, &rnd(), 4)),
         "file-time" => (vec![], text(13, 500)),
         "executable-set-raw-data" => (rnd(), edit(14, &rnd(), 4)),
+        "pa31-small-edits" => (rnd(), edit(15, &rnd(), 8)),
+        "pa31-empty-source" => (vec![], text(16, 5000)),
+        "pa31-large-moves" => {
+            let big = text(7, 1 << 20);
+            let target = edit(17, &big, 100);
+            (big, target)
+        }
+        "sha256-pa30" => (rnd(), edit(18, &rnd(), 4)),
+        "bsdiff-small-edits" => (rnd(), edit(19, &rnd(), 8)),
         other => panic!("unknown case {other}"),
     }
 }
@@ -141,17 +152,40 @@ fn manifest() -> serde_json::Map<String, Value> {
     map
 }
 
+fn fixture_file(path: &str) -> Vec<u8> {
+    std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(path),
+    )
+    .unwrap()
+}
+
 fn delta(name: &str) -> Vec<u8> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(format!("{name}.delta"));
-    std::fs::read(path).unwrap()
+    fixture_file(&format!("{name}.delta"))
+}
+
+/// Return the source and the target of a manifest entry: files, or the generator output.
+fn inputs(name: &str, entry: &Value) -> (Vec<u8>, Vec<u8>) {
+    match (entry["source_file"].as_str(), entry["target_file"].as_str()) {
+        (Some(source), Some(target)) => (fixture_file(source), fixture_file(target)),
+        _ => case(name),
+    }
+}
+
+/// Return `true` if the crate has the features that the entry needs.
+fn supported(entry: &Value) -> bool {
+    match entry["requires"].as_str() {
+        None => true,
+        Some("lzms") => cfg!(feature = "lzms"),
+        Some(other) => panic!("unknown requirement {other}"),
+    }
 }
 
 #[test]
 fn the_generator_makes_the_fixture_inputs() {
     for (name, entry) in manifest() {
-        let (source, target) = case(&name);
+        let (source, target) = inputs(&name, &entry);
         assert_eq!(
             hex(&Sha256::digest(&source)),
             entry["source_sha256"],
@@ -193,16 +227,62 @@ fn the_header_matches_get_delta_info() {
             "{name}"
         );
         assert_eq!(hex(&header.target_hash), info["TargetHash"], "{name}");
+        let pa31 = delta(&name).starts_with(b"PA31");
+        assert_eq!(header.pa31.is_some(), pa31, "{name}");
+        if let Some(info) = &header.pa31 {
+            assert_eq!(info.version, 1, "{name}");
+            let (source, _) = inputs(&name, &entry);
+            // `UpdateCompression.dll` writes no source hash for an empty source.
+            let expected = if source.is_empty() {
+                String::new()
+            } else {
+                hex(&Sha256::digest(&source))
+            };
+            assert_eq!(hex(&info.source_hash), expected, "{name}");
+        }
     }
 }
 
 #[test]
-fn each_delta_gives_the_target_of_msdelta_dll() {
-    for name in manifest().keys() {
-        let (source, target) = case(name);
-        let output =
-            msdelta::apply(&source, &delta(name)).unwrap_or_else(|e| panic!("{name}: {e}"));
+fn each_delta_gives_the_target_of_the_windows_dll() {
+    for (name, entry) in manifest() {
+        let (source, target) = inputs(&name, &entry);
+        let result = msdelta::apply(&source, &delta(&name));
+        if !supported(&entry) {
+            let error = result.unwrap_err();
+            assert!(
+                matches!(error.kind, ErrorKind::Unsupported(_)),
+                "{name}: {error}"
+            );
+            continue;
+        }
+        let output = result.unwrap_or_else(|e| panic!("{name}: {e}"));
         assert!(output == target, "{name}: the output is not the target");
+    }
+}
+
+#[test]
+fn a_wrong_source_fails_the_source_hash_check() {
+    let (source, _) = case("pa31-small-edits");
+    let mut wrong = source;
+    wrong[100] ^= 0xff;
+    let error = msdelta::apply(&wrong, &delta("pa31-small-edits")).unwrap_err();
+    assert_eq!(
+        error.kind,
+        ErrorKind::SourceHashMismatch { algorithm: 0x800c }
+    );
+}
+
+#[test]
+fn every_truncated_pe_delta_is_an_error() {
+    let name = "pe-sample-x64-v1-to-sample-x64-v2-pa31";
+    let data = delta(name);
+    let source = fixture_file("pe/sample-x64-v1.dll");
+    for len in 0..data.len() {
+        assert!(
+            msdelta::apply(&source, &data[..len]).is_err(),
+            "truncated to {len}"
+        );
     }
 }
 

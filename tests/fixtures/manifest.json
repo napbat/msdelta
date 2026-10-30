@@ -3,6 +3,7 @@
     "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "target_sha256": "f975b548e26aaccf9a298eac10d5155de59a99f6306b4b1cb27682ca29816dcb",
     "delta_bytes": 755,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -17,6 +18,7 @@
     "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "target_sha256": "b56d6e8a3230b302a5892c5c2533b53de3430aa5716a47bfdddd7f4e1707d0ab",
     "delta_bytes": 65907,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -31,6 +33,7 @@
     "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "target_sha256": "1a43ed094ff0d4f207428d8fb7bcccc263b41798ffcd48fca2bc376209ed0a86",
     "delta_bytes": 57,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -45,6 +48,7 @@
     "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
     "target_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "delta_bytes": 38,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -59,6 +63,7 @@
     "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "target_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "delta_bytes": 38,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -73,6 +78,7 @@
     "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
     "target_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
     "delta_bytes": 44,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -87,6 +93,7 @@
     "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
     "target_sha256": "84da54cd3b79c2a9ff98e096f8025d972f5e862dc3fdf53a1ff731f7ab5f0f1d",
     "delta_bytes": 172,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -101,6 +108,7 @@
     "source_sha256": "a4c9cf7455e4962f4d190855d688a07147d5d9cd4c9637b6670333abc1f51aad",
     "target_sha256": "07c2f52edde770c0b0b350aefa7050a994b79c53e028fd6323ba68d3eb1c9c34",
     "delta_bytes": 885,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -115,6 +123,7 @@
     "source_sha256": "ce9d662258a9a5cd850a2a1c73b0361772de18692f71ffa99ca0998975d5bc25",
     "target_sha256": "1b9d36111211b6f3ef0b6229368d29b5f801ccaacebfe1e867cce842376ff5bf",
     "delta_bytes": 4733,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -129,6 +138,7 @@
     "source_sha256": "0a9826fa7e86eca563f1280db4da195cf99429a9cf15fc7e1dcf0e8cfaab06d5",
     "target_sha256": "7cb9fea756b0a8c4f7192198bba4c16446d61bf2680e7842e073da305b492a0d",
     "delta_bytes": 1176,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -143,6 +153,7 @@
     "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
     "target_sha256": "b74465444ffe9a302440a6d4e9ab76b6bc9027298a06013c8c8de514ae7165c1",
     "delta_bytes": 157,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -157,6 +168,7 @@
     "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
     "target_sha256": "5060b6d3f6392d6a68a9549d5e700652f4c391ba4f3345cb468c4798096963d1",
     "delta_bytes": 166,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -171,6 +183,7 @@
     "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "target_sha256": "d8b27e990fb22058af177f9352f252e71149c6bb2f40cf01eb760f7858e8fdf7",
     "delta_bytes": 236,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0x1",
       "FileType": "0x1",
@@ -185,6 +198,7 @@
     "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
     "target_sha256": "8fbaca1db1be08948d44f7af3239b050b575900741b92e3ef417e2739fff804c",
     "delta_bytes": 67,
+    "dll": "msdelta",
     "info": {
       "FileTypeSet": "0xf",
       "FileType": "0x1",
@@ -194,5 +208,473 @@
       "TargetHashAlgId": "0x8003",
       "TargetHash": "8244e01453aed663843542819550f743"
     }
+  },
+  "pa31-small-edits": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "2d46da08eca926caf43ac047131a3817dc98abe4c6cea2e617e81977fb7834cc",
+    "delta_bytes": 289,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x18060000",
+      "TargetSize": 4113,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "2d46da08eca926caf43ac047131a3817dc98abe4c6cea2e617e81977fb7834cc"
+    }
+  },
+  "pa31-empty-source": {
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "target_sha256": "cb49341f8602d32d0936110f951ea1603eb89e991feb8f44d67596216830ba50",
+    "delta_bytes": 1139,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x18060000",
+      "TargetSize": 5000,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "cb49341f8602d32d0936110f951ea1603eb89e991feb8f44d67596216830ba50"
+    }
+  },
+  "pa31-large-moves": {
+    "source_sha256": "ce9d662258a9a5cd850a2a1c73b0361772de18692f71ffa99ca0998975d5bc25",
+    "target_sha256": "32d06d376b608bc8e84cec883a99f5b04d8937884d17007cb00d8e066aacb142",
+    "delta_bytes": 2589,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x18060000",
+      "TargetSize": 1048510,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "32d06d376b608bc8e84cec883a99f5b04d8937884d17007cb00d8e066aacb142"
+    }
+  },
+  "sha256-pa30": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "25bd6230a72e569112d6ba0cf921cc23d26d7e2a32bd0a4855570be32624ef0f",
+    "delta_bytes": 129,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 4061,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "25bd6230a72e569112d6ba0cf921cc23d26d7e2a32bd0a4855570be32624ef0f"
+    }
+  },
+  "bsdiff-small-edits": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "59ae07c5f5448508105dbe456f689a83b85c2a44dfdf75afe1dd01db40ab665a",
+    "delta_bytes": 308,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x1a060000",
+      "TargetSize": 4082,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "59ae07c5f5448508105dbe456f689a83b85c2a44dfdf75afe1dd01db40ab665a"
+    },
+    "requires": "lzms"
+  },
+  "pe-sample-x64-v1-to-sample-x64-v2": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 600,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0xe63e",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x64-v1-to-sample-x64-v2-pa31": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 658,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0xf5",
+      "FileType": "0x20",
+      "Flags": "0x1866263e",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897"
+    }
+  },
+  "pe-sample-x64-v2-to-sample-x64-v1": {
+    "source_file": "pe/sample-x64-v2.dll",
+    "target_file": "pe/sample-x64-v1.dll",
+    "source_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "target_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "delta_bytes": 490,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0xe63e",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "fbaddfbe95c43eb30c04b63081e173b4"
+    }
+  },
+  "pe-sample-x64-v2-to-sample-x64-v1-pa31": {
+    "source_file": "pe/sample-x64-v2.dll",
+    "target_file": "pe/sample-x64-v1.dll",
+    "source_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "target_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "delta_bytes": 548,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0xf5",
+      "FileType": "0x20",
+      "Flags": "0x1866263e",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b"
+    }
+  },
+  "pe-apiset-x64-v1-to-apiset-x64-v2": {
+    "source_file": "pe/apiset-x64-v1.dll",
+    "target_file": "pe/apiset-x64-v2.dll",
+    "source_sha256": "82a8ad95a95f5a5f7b9a55b61da2a5f8b10eac00a4fd21aafc7bfd3e08fd45e6",
+    "target_sha256": "9467a5530d990abe8215b836449d462e2081ce547a7602024c672a35bd098258",
+    "delta_bytes": 194,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0xe63e",
+      "TargetSize": 3072,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "827fbed88ce74a42cfaa0ca80be555de"
+    }
+  },
+  "pe-apiset-x64-v1-to-apiset-x64-v2-pa31": {
+    "source_file": "pe/apiset-x64-v1.dll",
+    "target_file": "pe/apiset-x64-v2.dll",
+    "source_sha256": "82a8ad95a95f5a5f7b9a55b61da2a5f8b10eac00a4fd21aafc7bfd3e08fd45e6",
+    "target_sha256": "9467a5530d990abe8215b836449d462e2081ce547a7602024c672a35bd098258",
+    "delta_bytes": 252,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0xf5",
+      "FileType": "0x20",
+      "Flags": "0x1866263e",
+      "TargetSize": 3072,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "9467a5530d990abe8215b836449d462e2081ce547a7602024c672a35bd098258"
+    }
+  },
+  "pe-apiset-x64-v2-to-apiset-x64-v1": {
+    "source_file": "pe/apiset-x64-v2.dll",
+    "target_file": "pe/apiset-x64-v1.dll",
+    "source_sha256": "9467a5530d990abe8215b836449d462e2081ce547a7602024c672a35bd098258",
+    "target_sha256": "82a8ad95a95f5a5f7b9a55b61da2a5f8b10eac00a4fd21aafc7bfd3e08fd45e6",
+    "delta_bytes": 190,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0xe63e",
+      "TargetSize": 3072,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "53a6d1dfa591a35644a1322fe8f843ac"
+    }
+  },
+  "pe-apiset-x64-v2-to-apiset-x64-v1-pa31": {
+    "source_file": "pe/apiset-x64-v2.dll",
+    "target_file": "pe/apiset-x64-v1.dll",
+    "source_sha256": "9467a5530d990abe8215b836449d462e2081ce547a7602024c672a35bd098258",
+    "target_sha256": "82a8ad95a95f5a5f7b9a55b61da2a5f8b10eac00a4fd21aafc7bfd3e08fd45e6",
+    "delta_bytes": 248,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0xf5",
+      "FileType": "0x20",
+      "Flags": "0x1866263e",
+      "TargetSize": 3072,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "82a8ad95a95f5a5f7b9a55b61da2a5f8b10eac00a4fd21aafc7bfd3e08fd45e6"
+    }
+  },
+  "pe-sample-x86-v1-to-sample-x86-v2": {
+    "source_file": "pe/sample-x86-v1.dll",
+    "target_file": "pe/sample-x86-v2.dll",
+    "source_sha256": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1",
+    "target_sha256": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0",
+    "delta_bytes": 636,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x2",
+      "Flags": "0xe1fe",
+      "TargetSize": 4608,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "1a5761f3534201a991680257da6c6d89"
+    }
+  },
+  "pe-sample-x86-v1-to-sample-x86-v2-pa31": {
+    "source_file": "pe/sample-x86-v1.dll",
+    "target_file": "pe/sample-x86-v2.dll",
+    "source_sha256": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1",
+    "target_sha256": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0",
+    "delta_bytes": 694,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0xf5",
+      "FileType": "0x10",
+      "Flags": "0x186621fe",
+      "TargetSize": 4608,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0"
+    }
+  },
+  "pe-sample-x86-v2-to-sample-x86-v1": {
+    "source_file": "pe/sample-x86-v2.dll",
+    "target_file": "pe/sample-x86-v1.dll",
+    "source_sha256": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0",
+    "target_sha256": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1",
+    "delta_bytes": 515,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x2",
+      "Flags": "0xe1fe",
+      "TargetSize": 4608,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "aa97c36811e6bfc3a87deece3bf51fee"
+    }
+  },
+  "pe-sample-x86-v2-to-sample-x86-v1-pa31": {
+    "source_file": "pe/sample-x86-v2.dll",
+    "target_file": "pe/sample-x86-v1.dll",
+    "source_sha256": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0",
+    "target_sha256": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1",
+    "delta_bytes": 573,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0xf5",
+      "FileType": "0x10",
+      "Flags": "0x186621fe",
+      "TargetSize": 4608,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1"
+    }
+  },
+  "pe-sample-x64-flag-4": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 622,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0x6",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x64-flag-8": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 638,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0xa",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x64-flag-10": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 635,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0x12",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x64-flag-20": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 636,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0x22",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x64-flag-200": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 643,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0x202",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x64-flag-400": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 646,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0x402",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x64-flag-2000": {
+    "source_file": "pe/sample-x64-v1.dll",
+    "target_file": "pe/sample-x64-v2.dll",
+    "source_sha256": "453ac535bb84de086de0f7675dc709cd9905be9485aad0044c796ea79789ea9b",
+    "target_sha256": "48a7877f0279d8d8d2f0c1bacb0d0ce7148e07c4650bb1e6e7734881721a0897",
+    "delta_bytes": 636,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x8",
+      "Flags": "0x2002",
+      "TargetSize": 5120,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "2d150289c8a9f740b0b5469e4ded58eb"
+    }
+  },
+  "pe-sample-x86-flag-40": {
+    "source_file": "pe/sample-x86-v1.dll",
+    "target_file": "pe/sample-x86-v2.dll",
+    "source_sha256": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1",
+    "target_sha256": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0",
+    "delta_bytes": 677,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x2",
+      "Flags": "0x42",
+      "TargetSize": 4608,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "1a5761f3534201a991680257da6c6d89"
+    }
+  },
+  "pe-sample-x86-flag-80": {
+    "source_file": "pe/sample-x86-v1.dll",
+    "target_file": "pe/sample-x86-v2.dll",
+    "source_sha256": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1",
+    "target_sha256": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0",
+    "delta_bytes": 677,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x2",
+      "Flags": "0x82",
+      "TargetSize": 4608,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "1a5761f3534201a991680257da6c6d89"
+    }
+  },
+  "pe-sample-x86-flag-100": {
+    "source_file": "pe/sample-x86-v1.dll",
+    "target_file": "pe/sample-x86-v2.dll",
+    "source_sha256": "e6861253561665e4a5535c236cbb829a4bdd035a359805ec02bd21f67edc19e1",
+    "target_sha256": "2b77871dc0d8639e04a95c080c30a702e4fb928ffe6b66750d9f97fdc6813dd0",
+    "delta_bytes": 677,
+    "dll": "msdelta",
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x2",
+      "Flags": "0x102",
+      "TargetSize": 4608,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "1a5761f3534201a991680257da6c6d89"
+    }
+  },
+  "pe-apiset-x64-bsdiff": {
+    "source_file": "pe/apiset-x64-v1.dll",
+    "target_file": "pe/apiset-x64-v2.dll",
+    "source_sha256": "82a8ad95a95f5a5f7b9a55b61da2a5f8b10eac00a4fd21aafc7bfd3e08fd45e6",
+    "target_sha256": "9467a5530d990abe8215b836449d462e2081ce547a7602024c672a35bd098258",
+    "delta_bytes": 298,
+    "dll": "UpdateCompression",
+    "info": {
+      "FileTypeSet": "0xf5",
+      "FileType": "0x20",
+      "Flags": "0x1a66263e",
+      "TargetSize": 3072,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x800c",
+      "TargetHash": "9467a5530d990abe8215b836449d462e2081ce547a7602024c672a35bd098258"
+    },
+    "requires": "lzms"
   }
 }

@@ -73,9 +73,13 @@ Clippy also limits each function to 100 lines (the `too_many_lines` default).
 ## Tests
 
 - Add a regression test for each defect. Make sure that the test fails before the fix.
-- Make each fixture delta with `scripts/make-fixtures.py` and `msdelta.dll`. Make the source
-  and the target in the test with the fixed-seed generator. Do not commit Microsoft files.
-- Make sure that the tests pass with and without the `std` feature.
+- Make each fixture delta with `scripts/make-fixtures.py`, `msdelta.dll` (PA30) and
+  `UpdateCompression.dll` (PA31). Make the source and the target in the test with the
+  fixed-seed generator, or use the self-built PE images of `scripts/build-pe-fixtures.py`.
+  Do not commit Microsoft files.
+- Make sure that the tests pass with and without the default features (`std`, `lzms`).
+- For a PE transform, compare the transformed source with `UpdateCompression.dll`
+  (`PreProcessor::PreProcessForApply`), and isolate the transform with `-ResetFlags`.
 - Do not use wall-clock time or random data without a fixed seed.
 
 ## Checks

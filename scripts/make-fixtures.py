@@ -1,8 +1,10 @@
-"""Make the PA30 test fixtures with the Windows msdelta.dll.
+"""Make the test fixtures with the Windows msdelta.dll and UpdateCompression.dll.
 
-Each case has a source and a target that a fixed-seed generator makes. The tests in
-tests/fixtures.rs make the same bytes with the same generator, so the repository keeps only the
-deltas and a manifest. Run this script on Windows with PowerShell 7 (pwsh):
+Each case has a source and a target. For most cases, a fixed-seed generator makes them. The
+tests in tests/fixtures.rs make the same bytes with the same generator, so the repository keeps
+only the deltas and a manifest. The PE cases use the self-built images in tests/fixtures/pe
+(see build-pe-fixtures.py). msdelta.dll makes PA30 deltas. UpdateCompression.dll makes PA31
+deltas with the flag 0x10000000. Run this script on Windows with PowerShell 7 (pwsh):
 
     python scripts/make-fixtures.py
 """
@@ -85,12 +87,34 @@ def repeat(pattern, n):
     return (pattern * (n // len(pattern) + 1))[:n]
 
 
-# name -> (source, target, options). Keep tests/common/mod.rs in sync.
+# PA31 deltas of UpdateCompression.dll: SetFlags 0x18060000 gives the flags of the Windows 11
+# update deltas of apisetschema.dll (0x1866263e for an x64 image with the type set 0xF5).
+PA31 = {"dll": "UpdateCompression", "hash": 0x800C, "set": 0x1806_0000}
+# The same, with a bsdiff patch (flag 0x2000000) as in KB5043080.
+BSDIFF = {"dll": "UpdateCompression", "hash": 0x800C, "set": 0x1A06_0000, "requires": "lzms"}
+
+# The pairs of self-built PE images in tests/fixtures/pe (see build-pe-fixtures.py).
+PE_PAIRS = [
+    ("sample-x64-v1", "sample-x64-v2"),
+    ("sample-x64-v2", "sample-x64-v1"),
+    ("apiset-x64-v1", "apiset-x64-v2"),
+    ("apiset-x64-v2", "apiset-x64-v1"),
+    ("sample-x86-v1", "sample-x86-v2"),
+    ("sample-x86-v2", "sample-x86-v1"),
+]
+
+
+def pe(name):
+    return ("pe/" + name + ".dll", (FIXTURES / "pe" / (name + ".dll")).read_bytes())
+
+
+# name -> (source, target, options). A source or a target is bytes from the generator (keep
+# tests/fixtures.rs in sync) or a (path, bytes) pair of a file in tests/fixtures.
 def cases():
     big = text(7, 1 << 20)
     rnd = random_bytes(3, 4096)
     far = random_bytes(11, 400_000)
-    return {
+    result = {
         "empty-source-text": (b"", text(1, 3000), {}),
         "empty-source-random": (b"", random_bytes(2, 65536), {}),
         "empty-source-repeat": (b"", repeat(b"abcdefgh", 300_000), {}),
@@ -105,7 +129,28 @@ def cases():
         "no-hash": (rnd, edit(10, rnd, 4), {"hash": 0}),
         "file-time": (b"", text(13, 500), {"time": 0x01D9_0000_1234_5678}),
         "executable-set-raw-data": (rnd, edit(14, rnd, 4), {"types": 0x0F}),
+        "pa31-small-edits": (rnd, edit(15, rnd, 8), dict(PA31)),
+        "pa31-empty-source": (b"", text(16, 5000), dict(PA31)),
+        "pa31-large-moves": (big, edit(17, big, 100), dict(PA31)),
+        "sha256-pa30": (rnd, edit(18, rnd, 4), {"dll": "UpdateCompression", "hash": 0x800C}),
+        "bsdiff-small-edits": (rnd, edit(19, rnd, 8), dict(BSDIFF)),
     }
+    for old, new in PE_PAIRS:
+        source, target = pe(old), pe(new)
+        result[f"pe-{old}-to-{new}"] = (source, target, {"types": 0x0F})
+        result[f"pe-{old}-to-{new}-pa31"] = (source, target, dict(PA31, types=0xF5))
+    # One transform at a time: reset the default flags of the other transforms.
+    for flag in (0x4, 0x8, 0x10, 0x20, 0x200, 0x400, 0x2000):
+        source, target = pe("sample-x64-v1"), pe("sample-x64-v2")
+        reset = 0xFFFF_FFFF & ~(0x2 | flag)
+        result[f"pe-sample-x64-flag-{flag:x}"] = (source, target, {"types": 0x0F, "reset": reset})
+    for flag in (0x40, 0x80, 0x100):
+        source, target = pe("sample-x86-v1"), pe("sample-x86-v2")
+        reset = 0xFFFF_FFFF & ~(0x2 | flag)
+        result[f"pe-sample-x86-flag-{flag:x}"] = (source, target, {"types": 0x0F, "reset": reset})
+    source, target = pe("apiset-x64-v1"), pe("apiset-x64-v2")
+    result["pe-apiset-x64-bsdiff"] = (source, target, dict(BSDIFF, types=0xF5))
+    return result
 
 
 def oracle(*args):
@@ -120,23 +165,36 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = pathlib.Path(tmp)
         for name, (source, target, options) in cases().items():
+            entry = {}
+            if isinstance(source, tuple):
+                entry["source_file"], source = source
+            if isinstance(target, tuple):
+                entry["target_file"], target = target
             src, tgt, out = tmp / "s", tmp / "t", FIXTURES / f"{name}.delta"
             src.write_bytes(source)
             tgt.write_bytes(target)
+            dll = options.get("dll", "msdelta")
             oracle("create", "-Source", src, "-Target", tgt, "-Out", out,
                    "-FileTypeSet", options.get("types", 1),
+                   "-SetFlags", options.get("set", 0),
+                   "-ResetFlags", options.get("reset", 0),
                    "-HashAlgId", options.get("hash", 0x8003),
-                   "-TargetFileTime", options.get("time", 0))
+                   "-TargetFileTime", options.get("time", 0),
+                   "-Dll", dll)
             check = tmp / "check"
-            oracle("apply", "-Source", src, "-Delta", out, "-Out", check)
+            oracle("apply", "-Source", src, "-Delta", out, "-Out", check, "-Dll", dll)
             assert check.read_bytes() == target, name
-            manifest[name] = {
+            entry.update({
                 "source_sha256": hashlib.sha256(source).hexdigest(),
                 "target_sha256": hashlib.sha256(target).hexdigest(),
                 "delta_bytes": out.stat().st_size,
-                "info": json.loads(oracle("info", "-Delta", out)),
-            }
-            print(f"{name}: {out.stat().st_size} bytes")
+                "dll": dll,
+                "info": json.loads(oracle("info", "-Delta", out, "-Dll", dll)),
+            })
+            if "requires" in options:
+                entry["requires"] = options["requires"]
+            manifest[name] = entry
+            print(f"{name}: {out.stat().st_size} bytes, flags {entry['info']['Flags']}")
     (FIXTURES / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 
