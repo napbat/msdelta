@@ -1,7 +1,7 @@
 //! Read the structure of a PE image for the transforms.
 //!
-//! `portex` parses the headers, the section table and the data directory table. This module
-//! adds the rules of `msdelta.dll` on top of the parsed headers:
+//! `portex` reads the headers, the section table, the data directory table and the records of
+//! the directories (`portex::raw`). This module adds only the rules of `msdelta.dll`:
 //!
 //! - The checks of the `SectionHelper` constructor, which decide if `msdelta.dll` accepts the
 //!   source as a PE image.
@@ -16,15 +16,24 @@
 use crate::prelude::*;
 use crate::rift::RiftTable;
 use crate::{Error, Result};
-use portex::PeHeaders;
-use portex::section::SectionHeader;
+use portex::optional::{PE32_MAGIC, PE32PLUS_MAGIC};
+use portex::raw::{
+    HeaderOffsets, ImportTableEnd, RawCursor, RawExportDirectory, RawImportDescriptors,
+};
+use portex::{CliHeader, DataDirectory, DebugDirectory, PeHeaders, SectionHeader};
 
 use super::TargetInfo;
 
 /// The smallest PE image that `msdelta.dll` accepts, in bytes.
 const MIN_SIZE: usize = 0x200;
-/// The size of a section header.
-const SECTION_SIZE: usize = SectionHeader::SIZE;
+/// The size of the NT headers of a PE32 image (`IMAGE_NT_HEADERS32`).
+const NT_HEADERS_32: usize = 248;
+/// The size of the NT headers of a PE32+ image (`IMAGE_NT_HEADERS64`).
+const NT_HEADERS_64: usize = 264;
+/// The `SizeOfOptionalHeader` of a PE32 image with 16 data directories.
+const OPTIONAL_HEADER_32: u16 = 224;
+/// The `SizeOfOptionalHeader` of a PE32+ image with 16 data directories.
+const OPTIONAL_HEADER_64: u16 = 240;
 /// `IMAGE_FILE_MACHINE_I386`.
 pub(crate) const MACHINE_I386: u16 = 0x14c;
 /// `IMAGE_FILE_MACHINE_IA64`.
@@ -40,6 +49,8 @@ pub(crate) mod directory {
     pub(crate) const IMPORT: usize = 1;
     /// `IMAGE_DIRECTORY_ENTRY_RESOURCE`.
     pub(crate) const RESOURCE: usize = 2;
+    /// `IMAGE_DIRECTORY_ENTRY_EXCEPTION`.
+    pub(crate) const EXCEPTION: usize = 3;
     /// `IMAGE_DIRECTORY_ENTRY_BASERELOC`.
     pub(crate) const BASERELOC: usize = 5;
     /// `IMAGE_DIRECTORY_ENTRY_DEBUG`.
@@ -48,6 +59,8 @@ pub(crate) mod directory {
     pub(crate) const GLOBALPTR: usize = 8;
     /// `IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG`.
     pub(crate) const LOAD_CONFIG: usize = 10;
+    /// `IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT`.
+    pub(crate) const BOUND_IMPORT: usize = 11;
     /// `IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR`.
     pub(crate) const COM_DESCRIPTOR: usize = 14;
 }
@@ -57,13 +70,9 @@ fn outside() -> Error {
     Error::invalid_data("a PE field is outside the image")
 }
 
-/// Read a little-endian `u16` at `offset`.
-pub(crate) fn u16_at(data: &[u8], offset: usize) -> Result<u16> {
-    let bytes = offset
-        .checked_add(2)
-        .and_then(|end| data.get(offset..end))
-        .ok_or_else(outside)?;
-    Ok(u16::from_le_bytes([bytes[0], bytes[1]]))
+/// Convert a `portex` error for a PE structure in the image.
+pub(crate) fn pe_error(error: &portex::Error) -> Error {
+    outside().with_details(format!("{error}"))
 }
 
 /// Read a little-endian `u32` at `offset`.
@@ -76,7 +85,7 @@ pub(crate) fn u32_at(data: &[u8], offset: usize) -> Result<u32> {
 }
 
 /// Read a little-endian `u64` at `offset`.
-pub(crate) fn u64_at(data: &[u8], offset: usize) -> Result<u64> {
+fn u64_at(data: &[u8], offset: usize) -> Result<u64> {
     let low = u32_at(data, offset)?;
     let high = u32_at(data, offset.checked_add(4).ok_or_else(outside)?)?;
     Ok(u64::from(low) | (u64::from(high) << 32))
@@ -151,8 +160,6 @@ pub(crate) struct Relocations {
 pub(crate) struct Directories {
     /// `NumberOfRvaAndSizes`.
     pub(crate) count: u32,
-    /// The file offset of the data directory table.
-    pub(crate) table: usize,
     /// The RVA of each directory.
     pub(crate) rva: [u32; 16],
     /// The file offset of each directory. Zero means that the directory is not present.
@@ -161,8 +168,9 @@ pub(crate) struct Directories {
     pub(crate) size: [u32; 16],
     /// The export directory.
     pub(crate) exports: Exports,
-    /// The file offset and the count of the import descriptors before the first empty one.
-    pub(crate) imports: Option<(usize, u32)>,
+    /// The file offsets of the import descriptors before the first one with a zero
+    /// `OriginalFirstThunk`.
+    pub(crate) imports: Vec<usize>,
     /// The resource directory.
     pub(crate) resources: Option<Resources>,
     /// The file offset of the load configuration directory.
@@ -172,7 +180,7 @@ pub(crate) struct Directories {
     /// The file offset of the CLI header.
     pub(crate) clr: Option<usize>,
     /// The file offset and the count of the debug directory entries.
-    pub(crate) debug: Option<(usize, u32)>,
+    pub(crate) debug: Option<(usize, usize)>,
 }
 
 /// The structure of a PE image.
@@ -180,16 +188,12 @@ pub(crate) struct Directories {
 pub(crate) struct Pe {
     /// The headers that `portex` parsed.
     pub(crate) headers: PeHeaders,
+    /// The file offsets of the header fields that the transforms read and write.
+    pub(crate) offsets: HeaderOffsets,
     /// The size of the image file.
     pub(crate) file_size: u32,
     /// `true` for a PE32 image, `false` for a PE32+ image.
     pub(crate) is32: bool,
-    /// The file offset of the NT headers (the `PE\0\0` signature).
-    pub(crate) nt: usize,
-    /// The file offset of the optional header.
-    pub(crate) optional: usize,
-    /// The file offset of the section table.
-    pub(crate) section_table: usize,
     /// The smaller of `SizeOfHeaders` and the file size.
     pub(crate) header_limit: u32,
     /// The data directories.
@@ -200,36 +204,41 @@ impl Pe {
     /// Read the headers of `data`, and apply the checks of the `SectionHelper` constructor.
     pub(crate) fn parse(data: &[u8]) -> Result<Self> {
         let bad = |what: &str| Error::invalid_data(format!("the source is not a PE image: {what}"));
+        // `SectionHelper::AttemptInit` rejects a file of 4 GiB or more, or of less than 512 bytes.
         let file_size = u32::try_from(data.len()).map_err(|_| bad("larger than 4 GiB"))?;
         if data.len() < MIN_SIZE {
             return Err(bad("smaller than 512 bytes"));
         }
-        let headers = PeHeaders::from_slice(data)
+        // `msdelta.dll` reads the headers from the file buffer: it rejects headers after the end
+        // of the file. `portex` also checks `e_magic`, `e_lfanew` and the PE signature.
+        let headers = PeHeaders::from_slice_strict(data)
             .map_err(|e| bad("the headers do not parse").with_details(format!("{e}")))?;
-        if headers.dos_header.e_magic != 0x5a4d {
-            return Err(bad("no MZ signature"));
-        }
-        let lfanew = u32::try_from(headers.dos_header.e_lfanew).map_err(|_| bad("bad e_lfanew"))?;
-        if lfanew > file_size {
-            return Err(bad("bad e_lfanew"));
-        }
-        let fits = |extra: u32| {
-            lfanew
-                .checked_add(extra)
-                .is_some_and(|end| end <= file_size)
+        let offsets = headers
+            .header_offsets()
+            .map_err(|e| bad("the headers do not parse").with_details(format!("{e}")))?;
+        // `SectionHelper::AttemptInit` needs the full NT headers in the file.
+        let fits = |size: usize| {
+            offsets
+                .nt_headers
+                .checked_add(size)
+                .is_some_and(|end| end <= data.len())
         };
         let coff = &headers.coff_header;
         let magic = match &headers.optional_header {
             portex::optional::OptionalHeader::Pe32(header) => header.magic,
             portex::optional::OptionalHeader::Pe32Plus(header) => header.magic,
         };
-        let is32 = if fits(248) && magic == 0x10b && coff.size_of_optional_header == 224 {
+        // `SectionHelper::AttemptInit` accepts only the standard `Magic` and
+        // `SizeOfOptionalHeader` pairs.
+        let size = coff.size_of_optional_header;
+        let is32 = if fits(NT_HEADERS_32) && magic == PE32_MAGIC && size == OPTIONAL_HEADER_32 {
             true
-        } else if fits(264) && magic == 0x20b && coff.size_of_optional_header == 240 {
+        } else if fits(NT_HEADERS_64) && magic == PE32PLUS_MAGIC && size == OPTIONAL_HEADER_64 {
             false
         } else {
             return Err(bad("bad optional header"));
         };
+        // `SectionHelper::AttemptInit` rejects an I386, IA64 or AMD64 image of the wrong width.
         let wrong_width = match coff.machine {
             MACHINE_I386 => !is32,
             MACHINE_IA64 | MACHINE_AMD64 => is32,
@@ -238,9 +247,7 @@ impl Pe {
         if wrong_width {
             return Err(bad("the machine does not match the optional header"));
         }
-        let nt = at(lfanew);
-        let optional = nt + 24;
-        let section_table = optional + usize::from(coff.size_of_optional_header);
+        // `SectionHelper::CheckSectionsRawData` rejects raw data outside the file.
         for section in &headers.section_headers {
             let end = section
                 .pointer_to_raw_data
@@ -249,14 +256,13 @@ impl Pe {
                 return Err(bad("a section is outside the file"));
             }
         }
+        // `SectionHelper::AttemptInit` limits `SizeOfHeaders` to the file size.
         let header_limit = headers.optional_header.size_of_headers().min(file_size);
         let mut pe = Self {
             headers,
+            offsets,
             file_size,
             is32,
-            nt,
-            optional,
-            section_table,
             header_limit,
             directories: Directories::default(),
         };
@@ -269,9 +275,14 @@ impl Pe {
         &self.headers.section_headers
     }
 
-    /// Return the file offset of section header `index`.
-    pub(crate) fn section_header_offset(&self, index: usize) -> usize {
-        self.section_table + SECTION_SIZE * index
+    /// Read `ImageBase` from `image`. The transforms read it from the image buffer, as
+    /// `msdelta.dll` does.
+    pub(crate) fn image_base(&self, image: &[u8]) -> Result<u64> {
+        if self.is32 {
+            Ok(u64::from(u32_at(image, self.offsets.image_base)?))
+        } else {
+            u64_at(image, self.offsets.image_base)
+        }
     }
 
     /// Find the section whose raw data covers `rva`, as `msdelta.dll` does.
@@ -339,17 +350,12 @@ impl Pe {
     /// Find the data directories, as the `DataDirectories` constructor does.
     fn read_directories(&self, data: &[u8]) -> Result<Directories> {
         let optional = &self.headers.optional_header;
-        let (count, table) = match optional {
-            portex::optional::OptionalHeader::Pe32(header) => {
-                (header.number_of_rva_and_sizes, self.nt + 120)
-            }
-            portex::optional::OptionalHeader::Pe32Plus(header) => {
-                (header.number_of_rva_and_sizes, self.nt + 136)
-            }
+        let count = match optional {
+            portex::optional::OptionalHeader::Pe32(header) => header.number_of_rva_and_sizes,
+            portex::optional::OptionalHeader::Pe32Plus(header) => header.number_of_rva_and_sizes,
         };
         let mut dirs = Directories {
             count,
-            table,
             ..Directories::default()
         };
         for (index, entry) in optional.data_directories().iter().enumerate().take(16) {
@@ -359,23 +365,27 @@ impl Pe {
             let rva = entry.virtual_address;
             dirs.rva[index] = rva;
             let mut offset = self.image_offset(rva, 0);
+            // `DataDirectories` uses the RVA as the file offset if `GetImageOffset` fails.
             if offset == 0 && rva < self.file_size {
                 offset = rva;
             }
             if offset != 0 {
                 dirs.offset[index] = offset;
+                // `DataDirectories` limits the size to the end of the file.
                 dirs.size[index] = (self.file_size - offset).min(entry.size);
             }
         }
         dirs.exports = self.read_exports(data, &dirs)?;
         let present = |index: usize| (dirs.offset[index] != 0).then(|| at(dirs.offset[index]));
         if let Some(offset) = present(directory::IMPORT) {
-            let limit = dirs.size[directory::IMPORT] / 20;
-            let mut count = 0;
-            while count < limit && u32_at(data, offset + 20 * at(count))? != 0 {
-                count += 1;
-            }
-            dirs.imports = Some((offset, count));
+            // `DataDirectories` counts the descriptors before the first zero `OriginalFirstThunk`.
+            let size = at(dirs.size[directory::IMPORT]);
+            dirs.imports =
+                RawImportDescriptors::new(offset, size, ImportTableEnd::ZeroOriginalFirstThunk)
+                    .iter(data)
+                    .map(|descriptor| descriptor.map(|descriptor| descriptor.offset))
+                    .collect::<core::result::Result<_, _>>()
+                    .map_err(|e| pe_error(&e))?;
         }
         if let Some(base) = present(directory::RESOURCE) {
             if dirs.count <= 2 {
@@ -387,6 +397,7 @@ impl Pe {
                 rva: dirs.rva[directory::RESOURCE],
             });
         }
+        // `DataDirectories` needs the 64 or 96 bytes of the oldest load configuration.
         let load_config_size = if self.is32 { 64 } else { 96 };
         if dirs.size[directory::LOAD_CONFIG] >= load_config_size {
             dirs.load_config = present(directory::LOAD_CONFIG);
@@ -394,17 +405,20 @@ impl Pe {
         if let Some(offset) = present(directory::BASERELOC) {
             dirs.relocations = Some(self.relocations(&dirs, offset));
         }
-        if dirs.size[directory::COM_DESCRIPTOR] >= 0x48 {
+        // `DataDirectories` needs the 0x48 bytes of `IMAGE_COR20_HEADER`.
+        if dirs.size[directory::COM_DESCRIPTOR] >= CliHeader::SIZE_U32 {
             dirs.clr = present(directory::COM_DESCRIPTOR);
         }
         if let Some(offset) = present(directory::DEBUG) {
-            dirs.debug = Some((offset, dirs.size[directory::DEBUG] / 28));
+            // `DataDirectories` counts the whole `IMAGE_DEBUG_DIRECTORY` entries.
+            let count = at(dirs.size[directory::DEBUG]) / DebugDirectory::SIZE;
+            dirs.debug = Some((offset, count));
         }
         Ok(dirs)
     }
 
     /// Find the extent of the base relocations: the directory size, or the rest of the first
-    /// `.reloc` section if that is larger.
+    /// `.reloc` section if that is larger, as `DataDirectories` does.
     fn relocations(&self, dirs: &Directories, offset: usize) -> Relocations {
         let size = dirs.size[directory::BASERELOC];
         let file_offset = dirs.offset[directory::BASERELOC];
@@ -431,24 +445,34 @@ impl Pe {
     /// Find the export tables, as the `DataDirectories` constructor does.
     fn read_exports(&self, data: &[u8], dirs: &Directories) -> Result<Exports> {
         let mut exports = Exports::default();
-        if dirs.offset[directory::EXPORT] == 0 || dirs.size[directory::EXPORT] < 0x28 {
+        // `DataDirectories` needs the 40 bytes of `IMAGE_EXPORT_DIRECTORY` in the directory.
+        if dirs.offset[directory::EXPORT] == 0
+            || at(dirs.size[directory::EXPORT]) < RawExportDirectory::SIZE
+        {
             return Ok(exports);
         }
         let dir = at(dirs.offset[directory::EXPORT]);
         exports.directory = Some(dir);
-        let functions = u32_at(data, dir + 20)?;
-        if functions <= 0x3fff_ffff {
-            let offset = self.image_offset(u32_at(data, dir + 28)?, 4 * functions);
+        let export = RawExportDirectory::parse(data, dir).map_err(|e| pe_error(&e))?;
+        // `DataDirectories` skips a table of more than 0x3fff_ffff entries (a size above
+        // 32 bits), or a table that `GetImageOffset` does not find in the file.
+        if let Some(size) = export.address_table_size() {
+            let offset = self.image_offset(export.address_of_functions.value, size);
             if offset != 0 {
-                exports.functions = Some((at(offset), functions));
+                exports.functions = Some((at(offset), export.number_of_functions.value));
             }
         }
-        let names = u32_at(data, dir + 24)?;
-        if names <= 0x3fff_ffff {
-            let name_offset = self.image_offset(u32_at(data, dir + 32)?, 4 * names);
-            let ordinal_offset = self.image_offset(u32_at(data, dir + 36)?, 2 * names);
+        if let (Some(names), Some(ordinals)) =
+            (export.name_table_size(), export.ordinal_table_size())
+        {
+            let name_offset = self.image_offset(export.address_of_names.value, names);
+            let ordinal_offset = self.image_offset(export.address_of_name_ordinals.value, ordinals);
             if name_offset != 0 && ordinal_offset != 0 {
-                exports.names = Some((at(name_offset), at(ordinal_offset), names));
+                exports.names = Some((
+                    at(name_offset),
+                    at(ordinal_offset),
+                    export.number_of_names.value,
+                ));
             }
         }
         Ok(exports)
@@ -461,23 +485,30 @@ impl Pe {
             // A PE32 image has a 32-bit image base: keep the low half.
             set_u32(
                 data,
-                self.optional + 28,
+                self.offsets.image_base,
                 low32(info.image_base.cast_signed()),
             )?;
         } else {
-            set_u64(data, self.optional + 24, info.image_base)?;
+            set_u64(data, self.offsets.image_base, info.image_base)?;
         }
         if self.directories.count <= 8 {
             return Err(Error::invalid_data(
                 "the image has no global pointer directory",
             ));
         }
-        set_u32(
-            data,
-            self.directories.table + 8 * directory::GLOBALPTR,
-            info.global_pointer,
-        )?;
-        set_u32(data, self.nt + 8, info.time_stamp)?;
-        set_u32(data, self.optional + 64, 0)
+        let entry = self
+            .offsets
+            .data_directory(directory::GLOBALPTR)
+            .and_then(|offset| data.get_mut(offset..))
+            .ok_or_else(outside)?;
+        let global_pointer = DataDirectory::parse(entry).map_err(|e| pe_error(&e))?;
+        DataDirectory {
+            virtual_address: info.global_pointer,
+            ..global_pointer
+        }
+        .write(entry)
+        .map_err(|e| pe_error(&e))?;
+        set_u32(data, self.offsets.time_date_stamp, info.time_stamp)?;
+        set_u32(data, self.offsets.check_sum, 0)
     }
 }

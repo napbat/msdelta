@@ -9,37 +9,33 @@
 //!   `UNW_FLAG_CHAININFO`. The transform maps only the first `u32` value after the unwind codes.
 //! - `UnwindInfoAddress`.
 
-use portex::exception::{
-    RuntimeFunction, UNW_FLAG_CHAININFO, UNW_FLAG_EHANDLER, UNW_FLAG_UHANDLER,
-};
+use portex::raw::{RawCursor, RawRuntimeFunctions, RawUnwindInfo};
 
-use crate::pe::image::{MACHINE_AMD64, at, low32, set_u32, u32_at};
+use crate::pe::image::{MACHINE_AMD64, at, directory, low32, pe_error, set_u32, u32_at};
 use crate::{Error, Result};
 
 use super::Context;
 
-/// The index of the exception directory (`IMAGE_DIRECTORY_ENTRY_EXCEPTION`).
-const EXCEPTION: usize = 3;
-/// The size of `RUNTIME_FUNCTION`.
-const ENTRY_SIZE: u32 = 12;
-/// The unwind flags (bits 3 to 7 of the first `UNWIND_INFO` byte) that put an RVA after the
-/// unwind codes.
-const HANDLER_FLAGS: u8 = (UNW_FLAG_EHANDLER | UNW_FLAG_UHANDLER | UNW_FLAG_CHAININFO) << 3;
-
-/// Return the file offset and the entry count of the exception directory, or `None` if the
-/// image has no exception directory. Make sure that the image is an AMD64 image.
-pub(super) fn exception_directory(context: &Context<'_>) -> Result<Option<(u32, u32)>> {
+/// Return a cursor over the records of the exception directory, and the file offset and the
+/// size of the directory. Return `None` if the image has no exception directory. Make sure
+/// that the image is an AMD64 image.
+pub(super) fn exception_directory(
+    context: &Context<'_>,
+) -> Result<Option<(RawRuntimeFunctions, u32, u32)>> {
     let pe = context.pe;
     if pe.headers.coff_header.machine != MACHINE_AMD64 {
         return Err(Error::invalid_data(
             "an AMD64 transform needs an AMD64 image",
         ));
     }
-    let offset = pe.directories.offset[EXCEPTION];
+    let offset = pe.directories.offset[directory::EXCEPTION];
     if offset == 0 {
         return Ok(None);
     }
-    Ok(Some((offset, pe.directories.size[EXCEPTION] / ENTRY_SIZE)))
+    let size = pe.directories.size[directory::EXCEPTION];
+    // `DataDirectories` counts only the whole 12-byte records.
+    let functions = RawRuntimeFunctions::new(at(offset), at(size));
+    Ok(Some((functions, offset, size)))
 }
 
 /// Map the `u32` RVA at the file offset `offset`.
@@ -59,10 +55,13 @@ fn map_handler(
 ) -> Result<()> {
     let pe = context.pe;
     let info = pe.image_offset(unwind, 0);
-    // The DLL compares the offsets with 32-bit wrapping arithmetic.
+    // `TransformPdataX64` skips an `UNWIND_INFO` in the exception directory. It compares the
+    // offsets with 32-bit wrapping arithmetic.
     if info == 0 || (directory <= info && directory.wrapping_add(size) >= info) {
         return Ok(());
     }
+    // `TransformPdataX64` limits the `UNWIND_INFO` to its section, or to the exception
+    // directory after it.
     let mut room = pe.max_size(unwind);
     if directory > info && directory < room.wrapping_add(info) {
         // The DLL subtracts in this order. The result wraps to a large value.
@@ -71,43 +70,39 @@ fn map_handler(
     if room < 4 {
         return Ok(());
     }
-    let base = at(info);
-    let header = |index: usize| {
-        image
-            .get(base + index)
-            .copied()
-            .ok_or_else(|| Error::invalid_data("an UNWIND_INFO is outside the image"))
-    };
-    if header(0)? & HANDLER_FLAGS == 0 {
+    let header = RawUnwindInfo::parse(image, at(info)).map_err(|e| pe_error(&e))?;
+    if !header.has_trailer() {
         return Ok(());
     }
-    // The unwind codes have 2 bytes each, padded to a multiple of 4 bytes.
-    let field = 4 * ((u32::from(header(2)?) + 1) >> 1) + 4;
-    if u64::from(room) > u64::from(field) + 4 {
-        map_at(context, image, base + at(field))?;
+    // `TransformPdataX64` maps the trailer only if 4 more bytes are in the room.
+    let field = header.size_without_trailer();
+    if u64::from(room) > u64::try_from(field).unwrap_or(u64::MAX).saturating_add(4) {
+        let trailer = header
+            .trailer_offset()
+            .ok_or_else(|| Error::invalid_data("an UNWIND_INFO is outside the image"))?;
+        map_at(context, image, trailer)?;
     }
     Ok(())
 }
 
 /// Run `TransformPdataX64`.
 pub(super) fn run(context: &mut Context<'_>, image: &mut [u8]) -> Result<()> {
-    let Some((directory, count)) = exception_directory(context)? else {
+    let Some((mut functions, directory, size)) = exception_directory(context)? else {
         return Ok(());
     };
-    let size = context.pe.directories.size[EXCEPTION];
+    let count = u64::try_from(functions.len()).unwrap_or(u64::MAX);
     // The DLL checks 4 bytes for each entry, not 12.
-    if u64::from(context.pe.file_size) <= u64::from(directory) + 4 * u64::from(count) {
+    if u64::from(context.pe.file_size) <= u64::from(directory) + 4 * count {
         return Err(Error::invalid_data(
             "the exception directory is outside the image",
         ));
     }
-    for index in 0..count {
-        let entry = at(directory) + at(index) * RuntimeFunction::SIZE;
-        map_at(context, image, entry)?;
-        map_at(context, image, entry + 4)?;
-        let unwind = u32_at(image, entry + 8)?;
+    while let Some(function) = functions.read_next(image).map_err(|e| pe_error(&e))? {
+        map_at(context, image, function.begin_address.offset)?;
+        map_at(context, image, function.end_address.offset)?;
+        let unwind = function.unwind_info_address.value;
         map_handler(context, image, unwind, directory, size)?;
-        map_at(context, image, entry + 8)?;
+        map_at(context, image, function.unwind_info_address.offset)?;
     }
     Ok(())
 }

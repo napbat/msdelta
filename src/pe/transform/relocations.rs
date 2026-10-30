@@ -13,15 +13,16 @@
 //! points into the image is an address, and the transform maps it.
 
 use crate::pe::image::{
-    MACHINE_I386, Relocations, at, directory, low32, set_u32, set_u64, u16_at, u32_at, u64_at,
+    MACHINE_I386, Relocations, at, directory, low32, pe_error, set_u32, set_u64, u32_at,
 };
 use crate::prelude::*;
 use crate::{Error, Result};
+use portex::raw::{RawCursor, RawRelocationBlock, RawRelocationBlocks, RawRelocations};
 use portex::reloc::{RelocationEntry as Word, RelocationType};
 
 use super::Context;
 
-/// The size of the `IMAGE_BASE_RELOCATION` block header.
+/// The size of the `IMAGE_BASE_RELOCATION` block header that `WriteRelocationEntries` writes.
 const HEADER_SIZE: u32 = 8;
 /// The bits of an RVA that select the page of a relocation block.
 const PAGE_MASK: u32 = 0xffff_f000;
@@ -103,51 +104,47 @@ fn read(
 ) -> Result<Vec<Entry>> {
     let pe = context.pe;
     // `msdelta.dll` uses the low 32 bits of the image bases for the subtraction and the map.
-    let source = if pe.is32 {
-        u32_at(image, pe.optional + 28)?
-    } else {
-        low32(u64_at(image, pe.optional + 24)?.cast_signed())
-    };
     let bases = ImageBases {
-        source,
+        source: low32(pe.image_base(image)?.cast_signed()),
         target: context.info.image_base,
     };
     let mut entries = Vec::new();
-    let mut block = relocations.offset;
-    let mut remaining = relocations.size;
-    while remaining >= HEADER_SIZE {
-        let page = u32_at(image, block)?;
-        let size = u32_at(image, block + 4)?;
-        if size < HEADER_SIZE || size > remaining {
-            break;
-        }
+    // `ReadRelocationEntries` stops at a block whose size is less than 8 or larger than the
+    // rest of the directory.
+    let mut blocks = RawRelocationBlocks::new(relocations.offset, at(relocations.size));
+    while let Some(block) = blocks.read_next(image).map_err(|e| pe_error(&e))? {
+        let page = block.virtual_address.value;
         let base = pe.image_offset(page, 0);
+        // `ReadRelocationEntries` skips a block whose page is not in the file.
         if base != 0 {
-            let words = block + at(HEADER_SIZE)..block + at(size);
-            read_block(context, image, page, base, words, &mut entries, bases)?;
+            read_block(
+                context,
+                image,
+                page,
+                base,
+                block.entries(),
+                &mut entries,
+                bases,
+            )?;
         }
-        remaining -= size;
-        block += at(size);
     }
     Ok(entries)
 }
 
-/// Read the entries of one block. `base` is the file offset of `page`, and `words` holds
-/// the file offsets of the entry words.
+/// Read the entries of one block. `base` is the file offset of `page`.
 fn read_block(
     context: &mut Context<'_>,
     image: &mut [u8],
     page: u32,
     base: u32,
-    words: core::ops::Range<usize>,
+    mut words: RawRelocations,
     entries: &mut Vec<Entry>,
     bases: ImageBases,
 ) -> Result<()> {
     let file_size = context.pe.file_size;
-    let mut word = words.start;
-    let mut count = (words.end - words.start) / 2;
-    while count != 0 {
-        let raw = Word::from_u16(u16_at(image, word)?);
+    while let Some(word) = words.read_next(image).map_err(|e| pe_error(&e))? {
+        let raw = word.entry;
+        // `ReadRelocationEntries` stops at the first `ABSOLUTE` entry of a block.
         if raw.is_padding() {
             break;
         }
@@ -178,19 +175,17 @@ fn read_block(
                 if let Some(fix) = fixup(offset, 2, file_size) {
                     mark(&mut context.hint, fix, 2);
                 }
-                if count > 1 {
-                    word += 2;
-                    count -= 1;
-                    entry.param = u16_at(image, word)?;
-                } else {
+                match word.parameter {
+                    Some(parameter) => entry.param = parameter.value,
                     // A `HIGHADJ` entry without its parameter word becomes an `ABSOLUTE` entry.
-                    entry.kind = RelocationType::Absolute;
+                    None => entry.kind = RelocationType::Absolute,
                 }
             }
             RelocationType::Dir64 => {
                 if let Some(fix) = fixup(offset, 8, file_size) {
                     mark(&mut context.hint, fix, 8);
-                    let value = low32(u64_at(image, fix)?.cast_signed()).wrapping_sub(bases.source);
+                    // `msdelta.dll` uses only the low 32 bits of the address.
+                    let value = u32_at(image, fix)?.wrapping_sub(bases.source);
                     let mapped = low32(context.map(i64::from(value)));
                     set_u64(image, fix, bases.target.wrapping_add(u64::from(mapped)))?;
                 }
@@ -198,8 +193,6 @@ fn read_block(
             _ => entry.kind = RelocationType::Absolute,
         }
         entries.push(entry);
-        word += 2;
-        count -= 1;
     }
     Ok(())
 }
@@ -225,7 +218,8 @@ fn write(image: &mut [u8], relocations: &Relocations, entries: &[Entry]) -> Resu
     let mut next = 0;
     while room >= HEADER_SIZE && next < entries.len() {
         let page = entries[next].rva & PAGE_MASK;
-        set_u32(image, block, page)?;
+        let header = RawRelocationBlock::parse(image, block).map_err(|e| pe_error(&e))?;
+        set_u32(image, header.virtual_address.offset, page)?;
         let first = block + at(HEADER_SIZE);
         let mut word = first;
         room -= HEADER_SIZE;
@@ -258,7 +252,7 @@ fn write(image: &mut [u8], relocations: &Relocations, entries: &[Entry]) -> Resu
         }
         let size = u32::try_from(word - block)
             .map_err(|_| Error::invalid_data("a relocation block is too large"))?;
-        set_u32(image, block + 4, size)?;
+        set_u32(image, header.size_of_block.offset, size)?;
         block = word;
     }
     Ok(())
@@ -271,11 +265,11 @@ fn write(image: &mut [u8], relocations: &Relocations, entries: &[Entry]) -> Resu
 /// the data directories that `MarkNonExe` marked in the hint buffer.
 fn infer_x86(context: &mut Context<'_>, image: &mut [u8]) -> Result<()> {
     let pe = context.pe;
-    let base = u32_at(image, pe.optional + 28)?;
-    let end = base.wrapping_add(u32_at(image, pe.optional + 56)?);
+    let base = low32(pe.image_base(image)?.cast_signed());
+    let end = base.wrapping_add(u32_at(image, pe.offsets.size_of_image)?);
     let target_base = low32(context.info.image_base.cast_signed());
     let limit = pe.file_size.saturating_sub(4);
-    let mut offset = u32_at(image, pe.optional + 60)?;
+    let mut offset = u32_at(image, pe.offsets.size_of_headers)?;
     while offset < limit {
         let value = u32_at(image, at(offset))?;
         if value <= base || value >= end {

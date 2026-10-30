@@ -7,11 +7,9 @@
 
 use crate::Result;
 use crate::pe::image::at;
+use portex::section::characteristics;
 
 use super::Context;
-
-/// `IMAGE_SCN_MEM_EXECUTE`.
-const SCN_MEM_EXECUTE: u32 = 0x2000_0000;
 
 /// Set `count` hint bytes from `offset` to `value`. The range is in the image.
 pub(super) fn fill(hint: &mut [u8], offset: u32, count: u32, value: u8) {
@@ -25,7 +23,7 @@ pub(super) fn run(context: &mut Context<'_>, _image: &mut [u8]) -> Result<()> {
     let pe = context.pe;
     for section in pe.sections() {
         let raw = section.pointer_to_raw_data;
-        if section.characteristics & SCN_MEM_EXECUTE == 0 && raw < pe.file_size {
+        if section.characteristics & characteristics::EXECUTE == 0 && raw < pe.file_size {
             let count = (pe.file_size - raw).min(section.size_of_raw_data);
             fill(&mut context.hint, raw, count, 1);
         }

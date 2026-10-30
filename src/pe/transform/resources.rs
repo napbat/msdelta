@@ -5,18 +5,14 @@
 //! the resource data. It changes the data entries, the subdirectory offsets and the name
 //! offsets.
 
+use portex::raw::{RawResourceDataEntry, RawResourceDirectory, RawResourceEntry};
+
 use crate::Result;
-use crate::pe::image::{Resources, at, low32, set_u32, u16_at, u32_at};
+use crate::pe::image::{Resources, at, low32, pe_error, set_u32};
 use crate::prelude::*;
 
 use super::Context;
 
-/// The size of `IMAGE_RESOURCE_DIRECTORY`.
-const DIRECTORY_SIZE: usize = 16;
-/// The size of `IMAGE_RESOURCE_DIRECTORY_ENTRY`.
-const ENTRY_SIZE: usize = 8;
-/// The size of `IMAGE_RESOURCE_DATA_ENTRY`.
-const DATA_SIZE: usize = 16;
 /// The bit of an offset that marks a subdirectory or a name string.
 const HIGH: u32 = 0x8000_0000;
 
@@ -30,18 +26,26 @@ struct Frame {
     returning: bool,
 }
 
+/// Read the resource directory entry at `offset`.
+fn entry_at(image: &[u8], offset: usize) -> Result<RawResourceEntry> {
+    RawResourceEntry::parse(image, offset).map_err(|e| pe_error(&e))
+}
+
 /// Return a directory frame, or `None` for a directory outside the resource data.
 fn frame(resources: &Resources, image: &[u8], directory: usize) -> Result<Option<Frame>> {
-    if directory < resources.base || directory.saturating_add(DIRECTORY_SIZE) > resources.end {
+    // `TransformRecursive` skips a directory that is not in the resource data.
+    if directory < resources.base
+        || directory.saturating_add(RawResourceDirectory::SIZE) > resources.end
+    {
         return Ok(None);
     }
-    let count =
-        usize::from(u16_at(image, directory + 12)?) + usize::from(u16_at(image, directory + 14)?);
-    let first = directory + DIRECTORY_SIZE;
-    let room = resources.end.saturating_sub(first) / ENTRY_SIZE;
+    let header = RawResourceDirectory::parse(image, directory).map_err(|e| pe_error(&e))?;
+    let first = directory + RawResourceDirectory::SIZE;
+    // `TransformRecursive` limits the entries to the resource data.
+    let room = resources.end.saturating_sub(first) / RawResourceEntry::SIZE;
     Ok(Some(Frame {
         entry: first,
-        remaining: count.min(room),
+        remaining: header.entry_count().min(room),
         returning: false,
     }))
 }
@@ -69,48 +73,49 @@ pub(super) fn run(context: &mut Context<'_>, image: &mut [u8]) -> Result<()> {
             stack.pop();
             continue;
         }
-        let entry = top.entry;
-        let data = u32_at(image, entry + 4)?;
+        let entry = entry_at(image, top.entry)?;
         if top.returning {
             top.returning = false;
-        } else if data & HIGH != 0 {
+        } else if entry.is_directory() {
             // A subdirectory: transform it first, then come back to this entry.
             top.returning = true;
-            let offset = at(data & !HIGH);
-            let child = resources.base + offset;
+            let child = resources.base + at(entry.child_offset());
             // The subdirectory must come after the entry, so the recursion ends.
-            if child > entry
+            if child > entry.offset
                 && let Some(child) = frame(&resources, image, child)?
             {
                 stack.push(child);
             }
             continue;
         } else {
-            let target = resources.base + at(data);
-            if target.saturating_add(DATA_SIZE) <= resources.end {
-                let value = u32_at(image, target)?;
-                set_u32(image, target, map(value))?;
+            let target = resources.base + at(entry.offset_to_data.value);
+            // `TransformRecursive` maps a data entry only inside the resource data.
+            if target.saturating_add(RawResourceDataEntry::SIZE) <= resources.end {
+                let data = RawResourceDataEntry::parse(image, target).map_err(|e| pe_error(&e))?;
+                let field = data.offset_to_data;
+                set_u32(image, field.offset, map(field.value))?;
             }
-            finish_name(image, entry, &map)?;
+            finish_name(image, entry.offset, &map)?;
             advance(&mut stack);
             continue;
         }
         // Back from the subdirectory of this entry.
-        let data = u32_at(image, entry + 4)?;
-        let mapped = map(data & !HIGH);
-        set_u32(image, entry + 4, (data & HIGH) | (mapped & !HIGH))?;
-        finish_name(image, entry, &map)?;
+        let field = entry.offset_to_data;
+        let mapped = map(entry.child_offset());
+        set_u32(image, field.offset, (field.value & HIGH) | (mapped & !HIGH))?;
+        finish_name(image, entry.offset, &map)?;
         advance(&mut stack);
     }
     Ok(())
 }
 
-/// Map the name offset of an entry with a name string.
-fn finish_name(image: &mut [u8], entry: usize, map: &impl Fn(u32) -> u32) -> Result<()> {
-    let name = u32_at(image, entry)?;
-    if name & HIGH != 0 {
-        let mapped = map(name & !HIGH);
-        set_u32(image, entry, (name & HIGH) | (mapped & !HIGH))?;
+/// Map the name offset of the entry at `offset`, if the entry has a name string.
+fn finish_name(image: &mut [u8], offset: usize, map: &impl Fn(u32) -> u32) -> Result<()> {
+    let entry = entry_at(image, offset)?;
+    if entry.is_named() {
+        let field = entry.name_or_id;
+        let mapped = map(entry.name_offset());
+        set_u32(image, field.offset, (field.value & HIGH) | (mapped & !HIGH))?;
     }
     Ok(())
 }
@@ -118,7 +123,7 @@ fn finish_name(image: &mut [u8], entry: usize, map: &impl Fn(u32) -> u32) -> Res
 /// Go to the next entry of the top frame.
 fn advance(stack: &mut [Frame]) {
     if let Some(top) = stack.last_mut() {
-        top.entry += ENTRY_SIZE;
+        top.entry += RawResourceEntry::SIZE;
         top.remaining -= 1;
     }
 }

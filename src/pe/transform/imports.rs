@@ -12,65 +12,24 @@
 //!
 //! The transform sets the hint bytes of the thunk tables and of the `IMAGE_IMPORT_BY_NAME`
 //! entries to 3. It reads each field from the image when `msdelta.dll` reads it, because a
-//! table can overlap another table.
+//! table can overlap another table. The `portex` raw views read the records; this module keeps
+//! the bounds of `msdelta.dll`.
 
-use portex::{ImportDescriptor, ImportThunk};
+use portex::ImportThunk;
+use portex::raw::{RawAddressTable, RawCursor, RawImportByName, RawImportDescriptor};
 
-use crate::pe::Pe;
-use crate::pe::image::{at, low32, set_u32, set_u64, u32_at, u64_at};
+use crate::pe::image::{at, low32, pe_error, set_u32, set_u64, u32_at};
 use crate::{Error, Result};
 
 use super::Context;
 use super::mark_non_exe::fill;
 
-/// The size of `IMAGE_IMPORT_DESCRIPTOR`.
-const DESCRIPTOR_SIZE: usize = ImportDescriptor::SIZE;
-/// The offset of `TimeDateStamp` in `IMAGE_IMPORT_DESCRIPTOR`.
-const TIME_STAMP: usize = 4;
-/// The offset of `Name` in `IMAGE_IMPORT_DESCRIPTOR`.
-const NAME: usize = 12;
-/// The offset of `FirstThunk` in `IMAGE_IMPORT_DESCRIPTOR`.
-const FIRST_THUNK: usize = 16;
 /// The hint value for the import tables.
 const HINT: u8 = 3;
 
-/// Read the import descriptor at file offset `offset` with `portex`.
-pub(super) fn descriptor(image: &[u8], offset: usize) -> Result<ImportDescriptor> {
-    image
-        .get(offset..)
-        .and_then(|data| ImportDescriptor::parse(data).ok())
-        .ok_or_else(|| Error::invalid_data("an import descriptor is outside the image"))
-}
-
-/// Find the `IMAGE_IMPORT_BY_NAME` entry at `rva`, as
-/// `DataDirectories::GetImageImportByNameConst` does.
-///
-/// Return the file offset of the entry and the length of the name, or `None` if the entry is
-/// not in the file or the name has no terminator in its section.
-fn import_by_name(pe: &Pe, image: &[u8], rva: u32) -> Result<Option<(u32, u32)>> {
-    let offset = pe.image_offset(rva, 4);
-    if offset == 0 {
-        return Ok(None);
-    }
-    let max = pe.max_size(rva);
-    if max <= 2 {
-        return Ok(None);
-    }
-    // The name starts after the 2-byte hint.
-    let mut end = 2;
-    loop {
-        let byte = image
-            .get(at(offset) + at(end))
-            .ok_or_else(|| Error::invalid_data("an import name is outside the image"))?;
-        if *byte == 0 {
-            break;
-        }
-        end += 1;
-        if end >= max {
-            break;
-        }
-    }
-    Ok((max > end).then_some((offset, end - 2)))
+/// Read the import descriptor at file offset `offset`.
+pub(super) fn descriptor(image: &[u8], offset: usize) -> Result<RawImportDescriptor> {
+    RawImportDescriptor::parse(image, offset).map_err(|e| pe_error(&e))
 }
 
 /// Map the low 32 bits of a thunk as the RVA of an `IMAGE_IMPORT_BY_NAME` entry.
@@ -78,7 +37,8 @@ fn import_by_name(pe: &Pe, image: &[u8], rva: u32) -> Result<Option<(u32, u32)>>
 /// The transform changes nothing for an import by ordinal or for an entry that is not in the
 /// file. It writes only the low 32 bits of the thunk, also in a PE32+ image.
 fn map_name(context: &mut Context<'_>, image: &mut [u8], entry: usize, value: u64) -> Result<()> {
-    let ordinal = if context.pe.is32 {
+    let pe = context.pe;
+    let ordinal = if pe.is32 {
         ImportThunk::is_ordinal_entry_32(low32(value.cast_signed()))
     } else {
         ImportThunk::is_ordinal_entry_64(value)
@@ -87,12 +47,22 @@ fn map_name(context: &mut Context<'_>, image: &mut [u8], entry: usize, value: u6
         return Ok(());
     }
     let rva = low32(value.cast_signed());
-    if let Some((offset, length)) = import_by_name(context.pe, image, rva)? {
-        // Mark the hint, the name and its terminator.
-        fill(&mut context.hint, offset, length + 3, HINT);
-        set_u32(image, entry, low32(context.map(i64::from(rva))))?;
+    // `GetImageImportByNameConst` needs 4 bytes at the RVA in the file.
+    let offset = pe.image_offset(rva, 4);
+    if offset == 0 {
+        return Ok(());
     }
-    Ok(())
+    // `GetImageImportByNameConst` needs the name terminator before the end of the section.
+    let Some(name) = RawImportByName::parse(image, at(offset), at(pe.max_size(rva)))
+        .map_err(|e| pe_error(&e))?
+    else {
+        return Ok(());
+    };
+    // Mark the hint, the name and its terminator.
+    let size = u32::try_from(name.size())
+        .map_err(|_| Error::invalid_data("an import name is outside the image"))?;
+    fill(&mut context.hint, offset, size, HINT);
+    set_u32(image, entry, low32(context.map(i64::from(rva))))
 }
 
 /// Map a bound virtual address of the import address table.
@@ -129,40 +99,31 @@ fn map_thunks(
     image_base: u64,
 ) -> Result<()> {
     let pe = context.pe;
-    let width: u32 = if pe.is32 { 4 } else { 8 };
-    let count = pe.max_size(rva) / width;
     let start = pe.image_offset(rva, 0);
     if start == 0 {
         return Ok(());
     }
-    let mut index = 0;
-    while index < count {
-        // The thunk is in the section of `rva`: `count` limits the index.
-        let entry = at(start) + at(index * width);
-        let value = if pe.is32 {
-            u64::from(u32_at(image, entry)?)
-        } else {
-            u64_at(image, entry)?
-        };
-        if value == 0 {
-            break;
-        }
+    // `TransformImports` limits the table to the end of its section (`GetMaxSize`).
+    let mut table = RawAddressTable::zero_terminated(at(start), at(pe.max_size(rva)), !pe.is32);
+    let mut count = 0;
+    while let Some(entry) = table.read_next(image).map_err(|e| pe_error(&e))? {
         let bound = match stamped {
-            Some(offset) => u32_at(image, offset + TIME_STAMP)? != 0,
+            Some(offset) => descriptor(image, offset)?.time_date_stamp.value != 0,
             None => false,
         };
         if bound {
-            map_bound(context, image, entry, value, image_base)?;
+            map_bound(context, image, entry.offset, entry.value, image_base)?;
         } else {
-            map_name(context, image, entry, value)?;
+            map_name(context, image, entry.offset, entry.value)?;
         }
-        index += 1;
+        count += 1;
     }
-    fill(&mut context.hint, start, index * width, HINT);
+    let width: u32 = if pe.is32 { 4 } else { 8 };
+    fill(&mut context.hint, start, count * width, HINT);
     Ok(())
 }
 
-/// Map an RVA field of an import descriptor.
+/// Map the RVA field at file offset `offset`.
 fn map_field(context: &Context<'_>, image: &mut [u8], offset: usize) -> Result<()> {
     let value = u32_at(image, offset)?;
     set_u32(image, offset, low32(context.map(i64::from(value))))
@@ -171,25 +132,17 @@ fn map_field(context: &Context<'_>, image: &mut [u8], offset: usize) -> Result<(
 /// Run `TransformImports`.
 pub(super) fn run(context: &mut Context<'_>, image: &mut [u8]) -> Result<()> {
     let pe = context.pe;
-    let Some((table, count)) = pe.directories.imports else {
-        return Ok(());
-    };
     // `msdelta.dll` reads the image base from the image before the transforms change it.
-    let image_base = if pe.is32 {
-        u64::from(u32_at(image, pe.optional + 28)?)
-    } else {
-        u64_at(image, pe.optional + 24)?
-    };
-    for index in 0..at(count) {
-        // `DataDirectories` limits the count to the descriptors in the file.
-        let offset = table + DESCRIPTOR_SIZE * index;
-        let lookup = descriptor(image, offset)?.original_first_thunk;
+    let image_base = pe.image_base(image)?;
+    for &offset in &pe.directories.imports {
+        let lookup = descriptor(image, offset)?.original_first_thunk.value;
         map_thunks(context, image, lookup, None, image_base)?;
-        let addresses = descriptor(image, offset)?.first_thunk;
+        let addresses = descriptor(image, offset)?.first_thunk.value;
         map_thunks(context, image, addresses, Some(offset), image_base)?;
-        map_field(context, image, offset + NAME)?;
-        map_field(context, image, offset)?;
-        map_field(context, image, offset + FIRST_THUNK)?;
+        let fields = descriptor(image, offset)?;
+        map_field(context, image, fields.name_rva.offset)?;
+        map_field(context, image, fields.original_first_thunk.offset)?;
+        map_field(context, image, fields.first_thunk.offset)?;
     }
     Ok(())
 }

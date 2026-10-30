@@ -11,21 +11,14 @@
 //! The scans skip all bytes that `MarkNonExe` marks as data in the hint buffer.
 
 use crate::pe::Pe;
-use crate::pe::image::{MACHINE_I386, at, low32, set_u32, u32_at};
+use crate::pe::image::{MACHINE_I386, at, low32, pe_error, set_u32, u32_at};
 use crate::prelude::*;
 use crate::{Error, Result};
-use portex::section::SectionHeader;
+use portex::raw::{RawAddressTable, RawCursor, RawLoadConfigDirectory};
+use portex::section::{SectionHeader, characteristics};
 
 use super::Context;
 
-/// `IMAGE_SCN_MEM_EXECUTE`.
-const SCN_MEM_EXECUTE: u32 = 0x2000_0000;
-/// The offset of `ImageBase` in `IMAGE_OPTIONAL_HEADER32`.
-const IMAGE_BASE: usize = 28;
-/// The offset of `SizeOfImage` in `IMAGE_OPTIONAL_HEADER32`.
-const SIZE_OF_IMAGE: usize = 56;
-/// The offset of `LockPrefixTable` in `IMAGE_LOAD_CONFIG_DIRECTORY32`.
-const LOCK_PREFIX_TABLE: usize = 0x20;
 /// The `lock` prefix.
 const LOCK: u8 = 0xf0;
 /// The opcode of `call rel32`.
@@ -85,24 +78,22 @@ pub(super) fn smash_lock_prefixes(context: &mut Context<'_>, image: &mut [u8]) -
     let Some(config) = pe.directories.load_config else {
         return Ok(());
     };
-    let table = u32_at(image, config + LOCK_PREFIX_TABLE)?;
+    let config = RawLoadConfigDirectory::parse(image, config, false).map_err(|e| pe_error(&e))?;
+    let table = low32(config.lock_prefix_table.value.cast_signed());
     if table == 0 {
         return Ok(());
     }
     // The image base and the addresses are 32-bit values: the subtractions wrap.
-    let base = u32_at(image, pe.optional + IMAGE_BASE)?;
+    let base = low32(pe.image_base(image)?.cast_signed());
     let rva = table.wrapping_sub(base);
     let offset = pe.image_offset(rva, 0);
     if offset == 0 {
         return Ok(());
     }
-    // `GetMaxSize` limits the table to the end of its section, so the entries are in the file.
-    let mut entry = at(offset);
-    for _ in 0..pe.max_size(rva) / 4 {
-        let address = u32_at(image, entry)?;
-        if address == 0 {
-            break;
-        }
+    // `SmashLockPrefixesX86` limits the table to the end of its section (`GetMaxSize`).
+    let mut entries = RawAddressTable::zero_terminated(at(offset), at(pe.max_size(rva)), false);
+    while let Some(entry) = entries.read_next(image).map_err(|e| pe_error(&e))? {
+        let address = low32(entry.value.cast_signed());
         let target = pe.image_offset(address.wrapping_sub(base), 1);
         // `msdelta.dll` compares the file offset with the virtual end of each section.
         let in_section = target != 0
@@ -115,7 +106,6 @@ pub(super) fn smash_lock_prefixes(context: &mut Context<'_>, image: &mut [u8]) -
                 .get_mut(at(target))
                 .ok_or_else(|| Error::invalid_data("a lock prefix is outside the image"))? = LOCK;
         }
-        entry += 4;
     }
     Ok(())
 }
@@ -145,7 +135,7 @@ impl Code {
 /// `RelativeCallsX86::Run` do. Return `None` for a section that the scans skip. `len` is the
 /// size of the image.
 fn code(pe: &Pe, section: &SectionHeader, len: usize) -> Result<Option<Code>> {
-    if section.characteristics & SCN_MEM_EXECUTE == 0 {
+    if section.characteristics & characteristics::EXECUTE == 0 {
         return Ok(None);
     }
     let size = section.virtual_size.min(section.size_of_raw_data);
@@ -202,7 +192,7 @@ fn jump_at(image: &[u8], code: &Code, offset: usize) -> Option<usize> {
 pub(super) fn relative_jumps(context: &mut Context<'_>, image: &mut [u8]) -> Result<()> {
     let pe = context.pe;
     check_i386(pe, "RelativeJmpsX86")?;
-    let size_of_image = u32_at(image, pe.optional + SIZE_OF_IMAGE)?;
+    let size_of_image = u32_at(image, pe.offsets.size_of_image)?;
     for section in pe.sections() {
         let Some(code) = code(pe, section, image.len())? else {
             continue;
@@ -259,7 +249,7 @@ pub(super) fn relative_jumps(context: &mut Context<'_>, image: &mut [u8]) -> Res
 pub(super) fn relative_calls(context: &mut Context<'_>, image: &mut [u8]) -> Result<()> {
     let pe = context.pe;
     check_i386(pe, "RelativeCallsX86")?;
-    let size_of_image = u32_at(image, pe.optional + SIZE_OF_IMAGE)?;
+    let size_of_image = u32_at(image, pe.offsets.size_of_image)?;
     for section in pe.sections() {
         let Some(code) = code(pe, section, image.len())? else {
             continue;

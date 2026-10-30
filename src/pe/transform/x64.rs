@@ -15,10 +15,9 @@
 mod decoder;
 mod tables;
 
-use portex::exception::RuntimeFunction;
+use portex::raw::RawCursor;
 
-use crate::pe::image::{at, low32, set_u32, u32_at};
-use crate::prelude::*;
+use crate::pe::image::{at, low32, pe_error, set_u32, u32_at};
 use crate::{Error, Result};
 
 use super::Context;
@@ -83,18 +82,11 @@ fn walk(
 
 /// Run `TransformDisasmX64`.
 pub(super) fn run(context: &mut Context<'_>, image: &mut [u8]) -> Result<()> {
-    let Some((directory, count)) = exception_directory(context)? else {
+    let Some((mut functions, _, _)) = exception_directory(context)? else {
         return Ok(());
     };
-    for index in 0..count {
-        let entry = at(directory) + at(index) * RuntimeFunction::SIZE;
-        let bytes = image
-            .get(entry..entry + RuntimeFunction::SIZE)
-            .ok_or_else(|| Error::invalid_data("the exception directory is outside the image"))?;
-        let function = RuntimeFunction::parse(bytes).map_err(|e| {
-            Error::invalid_data("a bad RUNTIME_FUNCTION").with_details(format!("{e}"))
-        })?;
-        let (begin, end) = (function.begin_address, function.end_address);
+    while let Some(function) = functions.read_next(image).map_err(|e| pe_error(&e))? {
+        let (begin, end) = (function.begin_address.value, function.end_address.value);
         if end <= begin {
             continue;
         }
