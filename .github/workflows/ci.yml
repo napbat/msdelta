@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            target: i686-pc-windows-msvc
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install mise
+        uses: jdx/mise-action@v4
+        with:
+          experimental: true
+
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --target ${{ matrix.target }} -- -D warnings
+
+      - name: Clippy (no_std + alloc)
+        run: cargo clippy --no-default-features --all-targets --target ${{ matrix.target }} -- -D warnings
+
+      - name: Test
+        run: cargo test --target ${{ matrix.target }}
+
+      - name: Test (no_std + alloc)
+        run: cargo test --no-default-features --target ${{ matrix.target }}
+
+      - name: Documentation
+        run: cargo doc --no-deps --target ${{ matrix.target }}
+
+  msrv:
+    name: MSRV (Rust 1.88)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install MSRV
+        run: rustup toolchain install 1.88.0 --profile minimal
+      - name: Test
+        run: cargo +1.88.0 test

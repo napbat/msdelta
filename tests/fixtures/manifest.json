@@ -1,0 +1,198 @@
+{
+  "empty-source-text": {
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "target_sha256": "f975b548e26aaccf9a298eac10d5155de59a99f6306b4b1cb27682ca29816dcb",
+    "delta_bytes": 755,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 3000,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "bc05b00f46596a4cae9730036fefbfed"
+    }
+  },
+  "empty-source-random": {
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "target_sha256": "b56d6e8a3230b302a5892c5c2533b53de3430aa5716a47bfdddd7f4e1707d0ab",
+    "delta_bytes": 65907,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 65536,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "4c1b4be73b69d6462043a5b92b6fd616"
+    }
+  },
+  "empty-source-repeat": {
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "target_sha256": "1a43ed094ff0d4f207428d8fb7bcccc263b41798ffcd48fca2bc376209ed0a86",
+    "delta_bytes": 57,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 300000,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "f25a2ff27774a06f32f3c94d01ba6661"
+    }
+  },
+  "empty-target": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "delta_bytes": 38,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 0,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "both-empty": {
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "target_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "delta_bytes": 38,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 0,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "identical": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "delta_bytes": 44,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 4096,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "c741bef302150def6172b41d669d3978"
+    }
+  },
+  "small-edits": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "84da54cd3b79c2a9ff98e096f8025d972f5e862dc3fdf53a1ff731f7ab5f0f1d",
+    "delta_bytes": 172,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 4067,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "b762403b89772d341b4c763758fcc615"
+    }
+  },
+  "text-edits": {
+    "source_sha256": "a4c9cf7455e4962f4d190855d688a07147d5d9cd4c9637b6670333abc1f51aad",
+    "target_sha256": "07c2f52edde770c0b0b350aefa7050a994b79c53e028fd6323ba68d3eb1c9c34",
+    "delta_bytes": 885,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 20138,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "073af1b1a822eed4177a8199e391a60a"
+    }
+  },
+  "large-moves": {
+    "source_sha256": "ce9d662258a9a5cd850a2a1c73b0361772de18692f71ffa99ca0998975d5bc25",
+    "target_sha256": "1b9d36111211b6f3ef0b6229368d29b5f801ccaacebfe1e867cce842376ff5bf",
+    "delta_bytes": 4733,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 1048479,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "d60ab3fc9ec1e5e1fc3040f2a54dad4e"
+    }
+  },
+  "far-matches": {
+    "source_sha256": "0a9826fa7e86eca563f1280db4da195cf99429a9cf15fc7e1dcf0e8cfaab06d5",
+    "target_sha256": "7cb9fea756b0a8c4f7192198bba4c16446d61bf2680e7842e073da305b492a0d",
+    "delta_bytes": 1176,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 401000,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "f4470c4304c44258cf1418b946009072"
+    }
+  },
+  "sha1-hash": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "b74465444ffe9a302440a6d4e9ab76b6bc9027298a06013c8c8de514ae7165c1",
+    "delta_bytes": 157,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 4100,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8004",
+      "TargetHash": "c1c3b5ede45f21b6851aaa17ae807cb027ed6e64"
+    }
+  },
+  "no-hash": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "5060b6d3f6392d6a68a9549d5e700652f4c391ba4f3345cb468c4798096963d1",
+    "delta_bytes": 166,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 4084,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x0",
+      "TargetHash": ""
+    }
+  },
+  "file-time": {
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "target_sha256": "d8b27e990fb22058af177f9352f252e71149c6bb2f40cf01eb760f7858e8fdf7",
+    "delta_bytes": 236,
+    "info": {
+      "FileTypeSet": "0x1",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 500,
+      "TargetFileTime": "0x1d9000012345678",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "67e36cf09c73ab40f525f3dd7ffd49c7"
+    }
+  },
+  "executable-set-raw-data": {
+    "source_sha256": "f124e0701a161248ca2034ca6e5c7cf67d333c4865570e24759042429536b25a",
+    "target_sha256": "8fbaca1db1be08948d44f7af3239b050b575900741b92e3ef417e2739fff804c",
+    "delta_bytes": 67,
+    "info": {
+      "FileTypeSet": "0xf",
+      "FileType": "0x1",
+      "Flags": "0x0",
+      "TargetSize": 3995,
+      "TargetFileTime": "0x0",
+      "TargetHashAlgId": "0x8003",
+      "TargetHash": "8244e01453aed663843542819550f743"
+    }
+  }
+}
