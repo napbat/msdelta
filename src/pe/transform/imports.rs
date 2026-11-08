@@ -59,8 +59,11 @@ fn map_name(context: &mut Context<'_>, image: &mut [u8], entry: usize, value: u6
         return Ok(());
     };
     // Mark the hint, the name and its terminator.
-    let size = u32::try_from(name.size())
-        .map_err(|_| Error::invalid_data("an import name is outside the image"))?;
+    // `size` is `None` only on overflow, which a parsed name cannot reach.
+    let size = name
+        .size()
+        .and_then(|size| u32::try_from(size).ok())
+        .ok_or_else(|| Error::invalid_data("an import name is outside the image"))?;
     fill(&mut context.hint, offset, size, HINT);
     set_u32(image, entry, low32(context.map(i64::from(rva))))
 }
