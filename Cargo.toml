@@ -22,8 +22,8 @@ lzms = ["dep:lzms"]
 
 [dependencies]
 md-5 = { version = "0.10", default-features = false }
-lzms = { git = "https://github.com/napbat/lzms", branch = "main", default-features = false, optional = true }
-portex = { git = "https://github.com/napbat/portex", branch = "main", default-features = false }
+lzms = { git = "https://github.com/napbat/lzms", default-features = false, optional = true }
+portex = { git = "https://github.com/napbat/portex", default-features = false }
 sha1 = { version = "0.10", default-features = false }
 sha2 = { version = "0.10", default-features = false }
 
